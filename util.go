@@ -10,16 +10,17 @@ import (
 )
 
 // used to decode the output of "dumpcap -D -M"
-var deviceListRE = regexp.MustCompile(`(?m:^)` +
-	`(\d+)\. ` + // the device number
-	`([^\t]+)\t` + // the device name
-	`([^\t]*)\t` + // the vendor name
-	`([^\t]*)\t` + // the human friendly name
-	`(\d+)\t` + // the interface type
-	`([a-fA-F0-9\.:,]*)\t` + // known addresses
-	`(\w+)` + // "loopback" or "network"
-	`(?m:\r?$)` + // newline
+
+var deviceListRE = regexp.MustCompile(`(?m:^)(\d+)\. ` + // number
+	`([^\t]+?)\t+?` + // device name
+	`([^\t]*)\t` + //vendor name
+	`([^\t]+?)\t` + // human friendly name
+	`(\d+)[\t ]+` + // iftype
+	`([a-fA-F0-9\.:,]*)[\t ]+?` + // address
+	`(\w+)` + // loopback or network
 	``)
+
+var capabilitiesSplitRE = regexp.MustCompile(`\t *?`)
 
 // The message headers that might arrive from dumpcap.
 // Taken from sync_pipe.h and hopefully not subject to change

@@ -478,7 +478,6 @@ func (d *Dumpcap) Devices(getCapabilities bool) ([]Device, error) {
 	if err != nil {
 		return nil, err
 	}
-
 	var devices []Device
 	for _, fields := range deviceListRE.FindAllStringSubmatch(string(buf), -1) {
 		dev, err := parseDevicesLine(fields)
@@ -506,7 +505,7 @@ func parseCapabilities(pipe io.Reader) (canRFMon bool, llts []LinkLayerType, err
 	canRFMon = scanner.Text() == "1"
 
 	for scanner.Scan() {
-		cols := strings.SplitN(scanner.Text(), "\t", 3)
+		cols := capabilitiesSplitRE.Split(scanner.Text(), 3)
 		if len(cols) != 3 {
 			return canRFMon, nil, errors.New("illegal output from dumcap")
 		}
