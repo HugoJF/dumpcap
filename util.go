@@ -12,9 +12,9 @@ import (
 // used to decode the output of "dumpcap -D -M"
 
 var deviceListRE = regexp.MustCompile(`(?m:^)(\d+)\. ` + // number
-	`([^\t]+?)\t+?` + // device name
+	`([^\t]*?)\t+?` + // device name
 	`([^\t]*)\t` + //vendor name
-	`([^\t]+?)\t` + // human friendly name
+	`([^\t]*?)\t` + // human friendly name
 	`(\d+)[\t ]+` + // iftype
 	`([a-fA-F0-9\.:,]*)[\t ]+?` + // address
 	`(\w+)` + // loopback or network

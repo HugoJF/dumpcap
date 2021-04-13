@@ -18,10 +18,9 @@ const (
 	mockFailSilenceArg          = "--FAIL_OUPUT"
 	mockIllegalOutputArg        = "--ILLEGAL_OUTPUT"
 	statsOutput                 = "devX\t123\t456\n"
-	interfacesOutput            = "1. em1\t\t\t0\t\tnetwork\n" +
-		"2. lo\t\tLoopback\t0\t127.0.0.1,::1\tloopback\n"
-	layersOutput = "1\n1\tEN10MB\tEthernet\n143\tDOCSIS\tDOCSIS\n"
-	gibberish    = "foobar\n"
+	interfacesOutput            = "1. \\Device\\NPF_{F92317A2-99B4-4C70-AC03-B0A1064E7103}\tIntel(R) Ethernet Connection (2) I218-V\tEthernet\t0\t192.168.15.107\tnetwork\t\n2. \\Device\\NPF_{A02ECF7A-5D8B-4B7E-86BC-0CC4BE17BFD7}\tOracle\tVirtualBox Host-Only Network #12\t0\tfe80::9dc:f5db:2653:6576,192.168.10.1\tnetwork\t\n3. \\Device\\NPF_Loopback\t\tAdapter for loopback traffic capture\t0\t\tloopback\t\n4. enp4s0\t\t\t0\t192.168.0.4\tnetwork\t\n5. lo\t\tLoopback\t0\t127.0.0.1\tloopback\t\n6. bluetooth0\t\t\t4\t\tnetwork\t\n"
+	layersOutput                = "1\n1\tEN10MB\tEthernet\n143\tDOCSIS\tDOCSIS\n"
+	gibberish                   = "foobar\n"
 )
 
 var errFailStart = errors.New("some error while starting the subprocess")
@@ -384,21 +383,76 @@ func TestDevices(t *testing.T) {
 		t.Fatal(devices, err)
 	}
 
-	if len(devices) != 2 {
+	if len(devices) != 6 {
 		t.Error(devices)
 	}
-	dev := devices[0]
-	if dev.Name != "em1" || dev.Number != 1 || dev.DevType != WiredDevice ||
-		dev.CanRFMon || len(dev.LLTs) > 0 || dev.Loopback || len(dev.Addresses) > 0 ||
-		dev.VendorName != "" || dev.FriendlyName != "" || dev.String() != "em1" {
-		t.Errorf("%#v\n", dev)
+
+	expected := []Device{
+		{
+			Number: 1, Name: "\\Device\\NPF_{F92317A2-99B4-4C70-AC03-B0A1064E7103}",
+			VendorName: "Intel(R) Ethernet Connection (2) I218-V", DevType: WiredDevice,
+			FriendlyName: "Ethernet", Addresses: []string{"192.168.15.107"}, Loopback: false,
+			CanRFMon: false, LLTs: []LinkLayerType{},
+		},
+		{
+			Number: 2, Name: "\\Device\\NPF_{A02ECF7A-5D8B-4B7E-86BC-0CC4BE17BFD7}",
+			VendorName: "Oracle", DevType: WiredDevice, FriendlyName: "VirtualBox Host-Only Network #12",
+			Addresses: []string{"fe80::9dc:f5db:2653:6576", "192.168.10.1"}, Loopback: false,
+			CanRFMon: false, LLTs: []LinkLayerType{},
+		},
+		{
+			Number: 3, Name: "\\Device\\NPF_Loopback", VendorName: "", DevType: WiredDevice,
+			FriendlyName: "Adapter for loopback traffic capture", Addresses: []string{},
+			Loopback: true, CanRFMon: false, LLTs: []LinkLayerType{},
+		},
+		{
+			Number: 4, Name: "enp4s0", VendorName: "", DevType: WiredDevice, FriendlyName: "",
+			Addresses: []string{"192.168.0.4"}, Loopback: false, CanRFMon: false, LLTs: []LinkLayerType{},
+		},
+		{
+			Number: 5, Name: "lo", VendorName: "", DevType: BluetoothDevice, FriendlyName: "Loopback",
+			Addresses: []string{"127.0.0.1"}, Loopback: true, CanRFMon: false, LLTs: []LinkLayerType{},
+		},
+		{
+			Number: 6, Name: "bluetooth0", VendorName: "", DevType: WiredDevice, FriendlyName: "",
+			Addresses: []string{}, Loopback: false, CanRFMon: false, LLTs: []LinkLayerType{},
+		},
 	}
-	dev = devices[1]
-	if dev.Name != "lo" || dev.Number != 2 || dev.DevType != WiredDevice ||
-		dev.CanRFMon || len(dev.LLTs) > 0 || !dev.Loopback || len(dev.Addresses) != 2 ||
-		dev.Addresses[0] != "127.0.0.1" || dev.Addresses[1] != "::1" || dev.VendorName != "" ||
-		dev.FriendlyName != "Loopback" || dev.String() != "lo" {
-		t.Errorf("%#v\n", dev)
+
+	for i, dev := range devices {
+		ex := expected[i]
+		if ex.Name != dev.Name {
+			t.Errorf("[DEVICE %d] %s [expected '%s' received '%s']: %#v\n", i+1, "Device name don't match", ex.Name, dev.Name, dev)
+		}
+		if ex.Number != dev.Number {
+			t.Errorf("[DEVICE %d] %s [expected '%d' received '%d']: %#v\n", i+1, "Device numbers don't match", ex.Number, dev.Number, dev)
+		}
+		if ex.DevType != dev.DevType {
+			t.Errorf("[DEVICE %d] %s [expected '%s' received '%s']: %#v\n", i+1, "Device type don't match", ex.DevType, dev.DevType, dev)
+		}
+		if ex.CanRFMon != dev.CanRFMon {
+			t.Errorf("[DEVICE %d] %s [expected '%t' received '%t']: %#v\n", i+1, "Device CanRFMon don't match", ex.CanRFMon, dev.CanRFMon, dev)
+		}
+		if ex.Loopback != dev.Loopback {
+			t.Errorf("[DEVICE %d] %s [expected '%t' received '%t']: %#v\n", i+1, "Device is loopback don't match", ex.Loopback, dev.Loopback, dev)
+		}
+		if len(ex.Addresses) != len(dev.Addresses) {
+			t.Errorf("[DEVICE %d] %s [expected '%d' received '%d']: %#v\n", i+1, "Device address count don't match", len(ex.Addresses), len(dev.Addresses), dev)
+		}
+		for j, address := range dev.Addresses {
+			if address != dev.Addresses[j] {
+				t.Errorf("[DEVICE %d] %s [expected '%s' received '%s']: %#v\n", i+1, "Device address don't match", address, dev.Addresses[j], dev)
+			}
+		}
+		if ex.FriendlyName != dev.FriendlyName {
+			t.Errorf("[DEVICE %d] %s [expected '%s' received '%s']: %#v\n", i+1, "Device friendly name don't match", ex.FriendlyName, dev.FriendlyName, dev)
+		}
+		if ex.VendorName != dev.VendorName {
+			t.Errorf("[DEVICE %d] %s [expected '%s' received '%s']: %#v\n", i+1, "Device vendor name don't match", ex.VendorName, dev.VendorName, dev)
+		}
+		if ex.String() != dev.String() {
+			t.Errorf("[DEVICE %d] %s [expected '%s' received '%s']: %#v\n", i+1, "Device String() don't match", ex.String(), dev.String(), dev)
+		}
 	}
 }
 
